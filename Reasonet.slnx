@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Reasonet.Agent/Reasonet.Agent.csproj" />
+    <Project Path="src/Reasonet.Cli/Reasonet.Cli.csproj" />
+    <Project Path="src/Reasonet.Configuration/Reasonet.Configuration.csproj" />
+    <Project Path="src/Reasonet.Core/Reasonet.Core.csproj" />
+    <Project Path="src/Reasonet.Providers.OpenAI/Reasonet.Providers.OpenAI.csproj" />
+    <Project Path="src/Reasonet.Tools.BuiltIn/Reasonet.Tools.BuiltIn.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Reasonet.Core.Tests/Reasonet.Core.Tests.csproj" />
+  </Folder>
+</Solution>

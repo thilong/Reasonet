@@ -1,0 +1,42 @@
+# Reasonet configuration.
+# Only <workspace>/.reasonet/config.toml is loaded (no global paths).
+# Secrets come from the environment via api_key_env; never put keys here.
+
+default_model = "deepseek"
+
+[agent]
+system_prompt = """
+You are Reasonet, a coding agent focused on executing code tasks.
+Use the provided tools to read and write files and run shell commands.
+Principles: understand the request before acting; verify with tools instead of
+guessing; keep changes minimal and correct; briefly summarize what you did."""
+max_steps   = 25
+temperature = 0.0
+auto_plan   = "off"
+# planner_model = "deepseek-pro"
+
+[[providers]]
+name        = "deepseek"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+model       = "deepseek-v4-flash"
+api_key_env = "DEEPSEEK_API_KEY"
+context_window = 1000000
+price = { cache_hit = 0.02, input = 1, output = 2, currency = "¥" }
+effort = "high"
+
+[[providers]]
+name        = "deepseek-pro"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+model       = "deepseek-v4-pro"
+api_key_env = "DEEPSEEK_API_KEY"
+context_window = 1000000
+price = { cache_hit = 0.1, input = 5, output = 10, currency = "¥" }
+effort = "high"
+
+[tools]
+enabled = []
+
+[permissions]
+mode = "allow"
