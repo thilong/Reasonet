@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Reasonet.Agent/Reasonet.Agent.csproj" />
+    <Project Path="src/Reasonet.App/Reasonet.App.csproj" />
     <Project Path="src/Reasonet.Cli/Reasonet.Cli.csproj" />
     <Project Path="src/Reasonet.Configuration/Reasonet.Configuration.csproj" />
     <Project Path="src/Reasonet.Core/Reasonet.Core.csproj" />
