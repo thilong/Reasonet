@@ -93,7 +93,7 @@ public sealed class UiSink : ISink
                 break;
 
             case EventKind.Reasoning:
-                if (!_thinking) { _w.AddInline("  thinking..."); _thinking = true; }
+                if (!_thinking) { _w.AddStatusLine("  thinking..."); _thinking = true; }
                 break;
 
             case EventKind.Text:
@@ -114,7 +114,7 @@ public sealed class UiSink : ISink
                 if (evt.Tool != null && !evt.Tool.IsPartial)
                 {
                     var a = evt.Tool.Args ?? "";
-                    _w.AddInline($"  ▶ {evt.Tool.Name}" + (a == "{}" || a == "" ? "" : $" {Compact(a)}"), Avalonia.Media.Brushes.DimGray);
+                    _w.AddStatusLine($"  \u25b6 {evt.Tool.Name}" + (a == "{}" || a == "" ? "" : $" {Compact(a)}"), Avalonia.Media.Brushes.DimGray);
                 }
                 break;
 
@@ -132,12 +132,12 @@ public sealed class UiSink : ISink
 
             case EventKind.Usage:
                 if (evt.Usage != null)
-                    _w.AddInline($"  tokens: ↑{evt.Usage.PromptTokens} ↓{evt.Usage.CompletionTokens}  hit:{evt.Usage.CacheHitTokens}  miss:{evt.Usage.CacheMissTokens}");
+                    _w.AddStatusLine($"  tokens: \u2191{evt.Usage.PromptTokens} \u2193{evt.Usage.CompletionTokens}  hit:{evt.Usage.CacheHitTokens}  miss:{evt.Usage.CacheMissTokens}");
                 break;
 
-            case EventKind.Notice: _w.AddInline($"  {evt.Text}"); break;
-            case EventKind.CompactionStarted: _w.AddInline("  compacting..."); break;
-            case EventKind.Phase: _w.AddInline($"[{evt.Phase}]"); break;
+            case EventKind.Notice: _w.AddStatusLine($"  {evt.Text}"); break;
+            case EventKind.CompactionStarted: _w.AddStatusLine("  compacting..."); break;
+            case EventKind.Phase: _w.AddStatusLine($"[{evt.Phase}]"); break;
         }
     }
 

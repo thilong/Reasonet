@@ -52,7 +52,7 @@ public class ChatPanel : Grid
             Watermark = "输入消息...（/ 命令，@ 提及）",
             MinHeight = 36,
             MaxHeight = 120,
-            AcceptsReturn = true,
+            AcceptsReturn = false,
             TextWrapping = TextWrapping.Wrap,
         };
         InputBox.KeyDown += OnInputKeyDown;
@@ -96,8 +96,21 @@ public class ChatPanel : Grid
     async void OnSendClick(object? s, RoutedEventArgs e) => OnSend?.Invoke();
     async void OnInputKeyDown(object? s, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-        { e.Handled = true; OnSend?.Invoke(); }
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+            {
+                // Shift+Enter inserts a newline
+                var idx = InputBox.CaretIndex;
+                InputBox.Text = InputBox.Text.Insert(idx, "\n");
+                InputBox.CaretIndex = idx + 1;
+            }
+            else
+            {
+                OnSend?.Invoke();
+            }
+        }
     }
 
     public Action? OnSend { get; set; }
@@ -163,7 +176,17 @@ public class ChatPanel : Grid
     {
         Dispatcher.UIThread.Post(() =>
         {
-            TranscriptList.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg, Margin = new Thickness(8, 2) });
+            TranscriptList.Children.Add(new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg, Margin = new Thickness(8, 2) });
+            ScrollDown();
+        });
+    }
+
+    /// <summary>Status text (thinking, tokens, phase) — NOT selectable.</summary>
+    public void AddStatusLine(string text, IBrush? fg = null)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            TranscriptList.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg ?? Brushes.Gray, Margin = new Thickness(8, 2) });
             ScrollDown();
         });
     }
@@ -248,9 +271,15 @@ public class ChatPanel : Grid
                 };
                 content = md;
             }
+            else if (tag == "status")
+            {
+                // Status lines (thinking, tokens, phase) — not selectable
+                content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg };
+            }
             else
             {
-                content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg };
+                // User & tool messages — fully selectable
+                content = new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fg };
             }
 
             var b = new Border

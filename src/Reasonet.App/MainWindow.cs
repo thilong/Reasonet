@@ -79,5 +79,6 @@ public class MainWindow : Window
     public void AddUserMessage(string t) => Chat.AddUserMessage(t);
     public void AddToolBubble(string t) => Chat.AddToolBubble(t);
     public void AddInline(string t, IBrush? fg = null) => Chat.AddInline(t, fg ?? Brushes.Gray);
+    public void AddStatusLine(string t, IBrush? fg = null) => Chat.AddStatusLine(t, fg ?? Brushes.Gray);
     public void AddErrorMessage(string t) => Chat.AddInline(t, Brushes.Red);
 }
