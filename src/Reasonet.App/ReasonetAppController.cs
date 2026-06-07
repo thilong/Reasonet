@@ -12,11 +12,11 @@ namespace Reasonet.App;
 
 public sealed class ReasonetAppController
 {
-    private readonly MainWindow _window;
+    private readonly MainWindow _w;
     private IRunner? _runner;
     private readonly string _root;
 
-    public ReasonetAppController(MainWindow w) { _window = w; _root = Directory.GetCurrentDirectory(); }
+    public ReasonetAppController(MainWindow w) { _w = w; _root = Directory.GetCurrentDirectory(); }
 
     public async Task InitializeAsync()
     {
@@ -24,12 +24,12 @@ public sealed class ReasonetAppController
         {
             var cfg = ConfigLoader.Load(_root);
             var mn = cfg.DefaultModel;
-            if (string.IsNullOrEmpty(mn)) { _window.AddSystemMessage("错误: 未配置默认模型"); return; }
+            if (string.IsNullOrEmpty(mn)) { _w.AddInline("错误: 未配置默认模型"); return; }
             var entry = cfg.Providers.FirstOrDefault(p => p.Name == mn);
-            if (entry == null) { _window.AddSystemMessage($"错误: 模型 \"{mn}\" 未找到"); return; }
+            if (entry == null) { _w.AddInline($"错误: 模型 \"{mn}\" 未找到"); return; }
 
             var key = Environment.GetEnvironmentVariable(entry.ApiKeyEnv) ?? entry.ApiKeyEnv;
-            if (string.IsNullOrEmpty(key)) { _window.AddSystemMessage($"错误: API Key 未设置 ({entry.ApiKeyEnv})"); return; }
+            if (string.IsNullOrEmpty(key)) { _w.AddInline($"错误: API Key 未设置 ({entry.ApiKeyEnv})"); return; }
 
             var mid = entry.Model ?? entry.Models.FirstOrDefault() ?? mn;
             var ds = entry.BaseUrl.Contains("deepseek.com", StringComparison.OrdinalIgnoreCase);
@@ -52,7 +52,7 @@ public sealed class ReasonetAppController
             reg.Add(new RunSkillTool(sk)); reg.Add(new InstallSkillTool(sk));
             prompt = Memory.MemorySet.Compose(prompt, Memory.MemorySet.Load(_root));
 
-            var sink = new UiSink(_window);
+            var sink = new UiSink(_w);
             var session = new AgentSession(prompt);
             var opts = new AgentOptions
             {
@@ -64,14 +64,14 @@ public sealed class ReasonetAppController
             var agent = new Reasonet.Agent.Agent(prov, reg, session, opts, sink);
             reg.Add(new TaskTool(agent));
             _runner = agent;
-            _window.AddSystemMessage($"已连接: {entry.Name}/{mid}");
+            _w.AddInline($"已连接: {entry.Name}/{mid}");
         }
-        catch (Exception ex) { _window.AddErrorMessage($"初始化失败: {ex.Message}"); }
+        catch (Exception ex) { _w.AddErrorMessage($"初始化失败: {ex.Message}"); }
     }
 
     public async Task RunAsync(string i)
     {
-        if (_runner == null) { _window.AddSystemMessage("等待初始化完成"); return; }
+        if (_runner == null) { _w.AddInline("等待初始化完成"); return; }
         await _runner.RunAsync(i);
     }
 }
@@ -80,46 +80,66 @@ public sealed class UiSink : ISink
 {
     private readonly MainWindow _w;
     private bool _thinking;
-    private string _toolName = "";
+    private string _pausedText = "";
     public UiSink(MainWindow w) => _w = w;
 
     public void Emit(Event evt)
     {
         switch (evt.Kind)
         {
-            case EventKind.TurnStarted: _thinking = false; break;
-
-            case EventKind.Reasoning:
-                if (!_thinking) { _w.AddSystemMessage("  thinking..."); _thinking = true; }
+            case EventKind.TurnStarted:
+                _thinking = false;
+                _w.Chat.CloseCurrentStream();
                 break;
 
-            case EventKind.Text: break; // accumulate, shown on Message
+            case EventKind.Reasoning:
+                if (!_thinking) { _w.AddInline("  thinking..."); _thinking = true; }
+                break;
+
+            case EventKind.Text:
+                if (evt.Text?.Length > 0)
+                    _w.Chat.AppendToStream(evt.Text);
+                break;
+
             case EventKind.Message:
-                if (evt.Text?.Length > 0) _w.AddAssistantMessage(evt.Text);
                 _thinking = false;
+                if (evt.Text?.Length > 0)
+                    _w.Chat.FinalizeMessage(evt.Text);
+                else
+                    _w.Chat.CloseCurrentStream();
                 break;
 
             case EventKind.ToolDispatch:
+                _w.Chat.CloseCurrentStream();
                 if (evt.Tool != null && !evt.Tool.IsPartial)
                 {
-                    _toolName = evt.Tool.Name;
-                    _w.AddToolCall(evt.Tool.Name, evt.Tool.Args);
+                    var a = evt.Tool.Args ?? "";
+                    _w.AddInline($"  ▶ {evt.Tool.Name}" + (a == "{}" || a == "" ? "" : $" {Compact(a)}"), Avalonia.Media.Brushes.DimGray);
                 }
                 break;
 
             case EventKind.ToolResult:
-                if (evt.Tool != null)
-                    _w.AddToolResult(evt.Tool.Name, evt.Tool.Output, evt.Tool.Error);
+                if (evt.Tool != null && !string.IsNullOrEmpty(evt.Tool.Error))
+                    _w.AddErrorMessage($"  ✘ {evt.Tool.Name}: {evt.Tool.Error}");
+                else if (evt.Tool?.Output?.Length > 0)
+                {
+                    var lines = evt.Tool.Output.Split('\n');
+                    var prev = string.Join('\n', lines.Take(8));
+                    if (lines.Length > 8) prev += $"\n  ... ({lines.Length} lines)";
+                    _w.AddToolBubble(prev);
+                }
                 break;
 
             case EventKind.Usage:
                 if (evt.Usage != null)
-                    _w.AddSystemMessage($"  tokens: ↑{evt.Usage.PromptTokens} ↓{evt.Usage.CompletionTokens} hit:{evt.Usage.CacheHitTokens} miss:{evt.Usage.CacheMissTokens}");
+                    _w.AddInline($"  tokens: ↑{evt.Usage.PromptTokens} ↓{evt.Usage.CompletionTokens}  hit:{evt.Usage.CacheHitTokens}  miss:{evt.Usage.CacheMissTokens}");
                 break;
 
-            case EventKind.Notice: _w.AddSystemMessage($"  {evt.Text}"); break;
-            case EventKind.CompactionStarted: _w.AddSystemMessage("  compacting..."); break;
-            case EventKind.Phase: _w.AddSystemMessage($"[{evt.Phase}]"); break;
+            case EventKind.Notice: _w.AddInline($"  {evt.Text}"); break;
+            case EventKind.CompactionStarted: _w.AddInline("  compacting..."); break;
+            case EventKind.Phase: _w.AddInline($"[{evt.Phase}]"); break;
         }
     }
+
+    static string Compact(string s) => s.Length > 50 ? s[..47] + "..." : s;
 }
